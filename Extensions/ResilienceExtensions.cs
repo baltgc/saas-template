@@ -42,8 +42,8 @@ public static class ResilienceExtensions
         // Combine policies: Retry -> Circuit Breaker -> Timeout
         var resiliencePolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy, timeoutPolicy);
 
-        // Register policies for HTTP clients
-        services.AddHttpClient()
+        // Register policies for HTTP clients - apply to all named clients
+        services.AddHttpClient("resilient")
             .AddPolicyHandler(resiliencePolicy);
 
         return services;

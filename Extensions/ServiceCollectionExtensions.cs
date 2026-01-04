@@ -30,7 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddResiliencePolicies();
 
         // Health checks
-        services.AddHealthChecks();
+        services.AddApplicationHealthChecks();
 
         // Redis caching
         services.AddRedisCaching(configuration);

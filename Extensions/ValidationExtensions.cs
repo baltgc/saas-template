@@ -1,3 +1,4 @@
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using saas_template.Validators;
 
@@ -7,12 +8,9 @@ public static class ValidationExtensions
 {
     public static IServiceCollection AddFluentValidation(this IServiceCollection services)
     {
-        services.AddFluentValidation(fv =>
-        {
-            fv.RegisterValidatorsFromAssemblyContaining<CreateUserDtoValidator>();
-            fv.AutomaticValidationEnabled = true;
-            fv.ImplicitlyValidateChildProperties = true;
-        });
+        services.AddValidatorsFromAssemblyContaining<CreateUserDtoValidator>();
+        services.AddFluentValidationAutoValidation();
+        services.AddFluentValidationClientsideAdapters();
 
         return services;
     }

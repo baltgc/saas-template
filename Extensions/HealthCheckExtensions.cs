@@ -6,9 +6,11 @@ namespace saas_template.Extensions;
 
 public static class HealthCheckExtensions
 {
-    public static IServiceCollection AddHealthChecks(this IServiceCollection services)
+    public static IServiceCollection AddApplicationHealthChecks(this IServiceCollection services)
     {
-        services.AddHealthChecks()
+        var healthChecksBuilder = services.AddHealthChecks();
+        
+        healthChecksBuilder
             .AddDbContextCheck<ApplicationDbContext>("database", tags: new[] { "ready" })
             .AddCheck<MemoryHealthCheck>("memory", tags: new[] { "ready" })
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" });

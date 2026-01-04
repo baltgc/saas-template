@@ -18,9 +18,6 @@ builder.Services.AddApiVersioning(options =>
     options.DefaultApiVersion = new Microsoft.AspNetCore.Mvc.ApiVersion(1, 0);
     options.AssumeDefaultVersionWhenUnspecified = true;
     options.ReportApiVersions = true;
-    options.ApiVersionReader = Microsoft.AspNetCore.Mvc.ApiVersionReader.Combine(
-        new Microsoft.AspNetCore.Mvc.HeaderApiVersionReader("X-Version"),
-        new Microsoft.AspNetCore.Mvc.QueryStringApiVersionReader("version"));
 });
 
 // Add application services (database, repositories, services)
