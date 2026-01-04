@@ -6,7 +6,8 @@ using saas_template.Services;
 namespace saas_template.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;

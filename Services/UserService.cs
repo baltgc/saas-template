@@ -7,32 +7,62 @@ namespace saas_template.Services;
 
 public class UserService : IUserService
 {
-    private readonly IRepository<User> _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cacheService;
+    private const string CacheKeyPrefix = "user_";
+    private const string CacheKeyAllUsers = "users_all";
 
-    public UserService(IRepository<User> userRepository)
+    public UserService(IUnitOfWork unitOfWork, ICacheService cacheService)
     {
-        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
+        _cacheService = cacheService;
     }
+
+    private IRepository<User> UserRepository => _unitOfWork.Repository<User>();
+
+    private static string GetCacheKey(int id) => $"{CacheKeyPrefix}{id}";
 
     public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
     {
-        var users = await _userRepository.GetAllAsync();
-        return users.Select(MapToDto);
+        // Check cache first
+        var cachedUsers = await _cacheService.GetAsync<List<UserDto>>(CacheKeyAllUsers);
+        if (cachedUsers != null)
+            return cachedUsers;
+
+        var users = await UserRepository.GetAllAsync();
+        var userDtos = users.Select(MapToDto).ToList();
+
+        // Cache for 5 minutes
+        await _cacheService.SetAsync(CacheKeyAllUsers, userDtos, TimeSpan.FromMinutes(5));
+
+        return userDtos;
     }
 
     public async Task<UserDto?> GetUserByIdAsync(int id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        var cacheKey = GetCacheKey(id);
+
+        // Check cache first
+        var cachedUser = await _cacheService.GetAsync<UserDto>(cacheKey);
+        if (cachedUser != null)
+            return cachedUser;
+
+        var user = await UserRepository.GetByIdAsync(id);
         if (user == null)
             return null;
 
-        return MapToDto(user);
+        var userDto = MapToDto(user);
+
+        // Cache for 5 minutes
+        await _cacheService.SetAsync(cacheKey, userDto, TimeSpan.FromMinutes(5));
+
+        return userDto;
     }
 
     public async Task<UserDto> CreateUserAsync(CreateUserDto createUserDto)
     {
         // Check if email already exists
-        var existingUser = await _userRepository.FirstOrDefaultAsync(u => u.Email == createUserDto.Email);
+        var existingUser = await UserRepository.FirstOrDefaultAsync(u => u.Email == createUserDto.Email);
         if (existingUser != null)
             throw new BadRequestException("User with this email already exists");
 
@@ -43,20 +73,27 @@ public class UserService : IUserService
             IsActive = true
         };
 
-        var createdUser = await _userRepository.AddAsync(user);
-        return MapToDto(createdUser);
+        var createdUser = await UserRepository.AddAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        var userDto = MapToDto(createdUser);
+
+        // Invalidate cache
+        await _cacheService.RemoveAsync(CacheKeyAllUsers);
+
+        return userDto;
     }
 
     public async Task<UserDto?> UpdateUserAsync(int id, UpdateUserDto updateUserDto)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        var user = await UserRepository.GetByIdAsync(id);
         if (user == null)
             return null;
 
         // Check if email is being changed and if it already exists
         if (!string.IsNullOrEmpty(updateUserDto.Email) && updateUserDto.Email != user.Email)
         {
-            var existingUser = await _userRepository.FirstOrDefaultAsync(u => u.Email == updateUserDto.Email);
+            var existingUser = await UserRepository.FirstOrDefaultAsync(u => u.Email == updateUserDto.Email);
             if (existingUser != null)
                 throw new BadRequestException("User with this email already exists");
         }
@@ -72,17 +109,31 @@ public class UserService : IUserService
 
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _userRepository.UpdateAsync(user);
-        return MapToDto(user);
+        await UserRepository.UpdateAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        var userDto = MapToDto(user);
+
+        // Invalidate cache
+        await _cacheService.RemoveAsync(GetCacheKey(id));
+        await _cacheService.RemoveAsync(CacheKeyAllUsers);
+
+        return userDto;
     }
 
     public async Task<bool> DeleteUserAsync(int id)
     {
-        var user = await _userRepository.GetByIdAsync(id);
+        var user = await UserRepository.GetByIdAsync(id);
         if (user == null)
             return false;
 
-        await _userRepository.DeleteAsync(user);
+        await UserRepository.DeleteAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        // Invalidate cache
+        await _cacheService.RemoveAsync(GetCacheKey(id));
+        await _cacheService.RemoveAsync(CacheKeyAllUsers);
+
         return true;
     }
 
