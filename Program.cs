@@ -2,9 +2,6 @@ using Serilog;
 using saas_template.Extensions;
 using saas_template.Middleware;
 
-// Make Program class accessible for integration tests
-public partial class Program { }
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog logging
@@ -85,3 +82,8 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Make Program class accessible for integration tests
+namespace saas_template;
+
+public partial class Program { }
